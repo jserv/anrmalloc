@@ -1,0 +1,143 @@
+anrmalloc coding style
+
+Indentation
+1.  Use spaces, not tabs.  Tabs should appear only in files that require them for semantic meaning (e.g., Makefiles)
+2.  Indent is 4 spaces.
+3.  A case label should line up with the containing switch statement.  The case contents are indented.
+
+    switch (condition) {
+    case FOO:
+    case BAR:
+        i++;
+        break;
+    default:
+        i--;
+    }
+
+4.  Boolean expressions at the same nesting level that span lines should have their operators on the 
+    left side of the line instead of the right side.
+
+    if (attr 
+        && (! strcmp (attr->name, "foo")
+            || ! strcmp (attr->name, "bar"))
+
+Spacing
+1.  No spaces around unary statements.
+
+    i++;
+
+2.  Do add spaces around binary and ternary operators.
+
+    y = m * x + b;
+    f (a, b);
+    c = a | b;
+    return condition ? 1 : 0;
+
+3.  No spaces before comma or semicolon.
+
+    for (i = 0; i < 10; i++) {
+        do_it ();
+    }
+
+4.  Place spaces between control statements or functions and their parentheses.
+   
+    if (condition) {
+        do_it ();
+    }
+
+Line breaking
+
+1.  Each statement should get its own line.
+
+    Right:
+        void * a;
+        void * b;
+
+        i++;
+        j++;
+     
+        if (condition) {
+           do_it ();
+        }
+
+    Wrong:
+        void * a, * b;
+        i++; j++;
+        if (condition) do_it ();
+
+2.  Else statements should go on the same line as the preceding close brace.
+
+    if (condition) {
+        ...
+    } else {
+        ...
+    }
+
+3.  Any else if statement should be written as an if statement when the prior if concludes with a return statement.
+
+    if (condition) {
+        ...
+        return value;
+    }
+    if (otherCondition) {
+        ...
+    }
+
+4.  Function return types should be on their own line and the function name should start in column 0.
+
+    int
+    main (int argc, char ** argv)
+    {
+
+    }
+
+Braces
+
+1.  Function definitions: braces go in column 0 on their own line.
+
+    Right:
+        int 
+        main () 
+        {
+            ... 
+        }
+
+    Wrong:
+        int 
+        main () {
+            ...
+        }
+
+2.  All other braces: cuddle the brace on the same line as the control statement, with a space between.
+
+    Right:
+        for (int i = 0; i < 10; i++) {
+            ...
+        }
+
+    Wrong:
+        for (i = 0; i < 10; i++){
+            ...
+        }
+    
+        for (i = 0; i < 10; i++) 
+        {
+            ...
+        }
+
+3.  One line control clauses must use braces.
+
+    Right:
+        if (condition) {
+            do_it ();
+        }
+
+    Wrong:
+        if (condition)
+            do_it ();
+
+4.  Control clauses without a body should use empty braces and a semi-colon:
+
+    for ( ; ptr; ptr = ptr->next) { ; } 
+
+ 
