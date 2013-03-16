@@ -4128,7 +4128,6 @@ void
 _anr_core_add_mapping(malloc_state_t * self, unsigned int available, unsigned int bytes)
 {
     uintptr_t offset;
-    unsigned int i;
     uintptr_t end;
     uintptr_t start;
     mapping_t * mapping = map_address_space(available, bytes);
@@ -4193,9 +4192,6 @@ _anr_core_add_mapping(malloc_state_t * self, unsigned int available, unsigned in
 
     debug_assert(offset/BITS_PER_WORD  < mapping->mapwords);
     mapping->dirtymap[ index2word(offset)] = 1 << index2bit(offset);
-
-    i = (unsigned int)ptr_to_page(mapping->fence)- (int)mapping->top;
-    i/= PAGESIZE_BYTES;
 
     /* mark the dirtymap bits for area->top -> area->fence */
     end = (uintptr_t)mapping->fence - (uintptr_t)mapping->top;
