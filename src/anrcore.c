@@ -5930,8 +5930,8 @@ check_dirtymap(malloc_state_t * self, bool print)
             dirty_page_check += population_count(mapping->dirtymap[i]);
             if (print 
                 && mapping->dirtymap[i])
-                printf ("0x%8x -- %08x\n", 
-                       (int)mapping->top + PAGESIZE_BYTES * i * BITS_PER_WORD, 
+                printf ("%p -- %08x\n",
+                       mapping->top + PAGESIZE_BYTES * i * BITS_PER_WORD,
                        mapping->dirtymap[i]);
 
         }
