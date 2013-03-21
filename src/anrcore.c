@@ -616,6 +616,35 @@ uint32_t mask_left(bitmap_t map, uint32_t index) {
 
 
 
+#ifndef MALLOC_DEBUG
+#define MALLOC_DEBUG 0
+#endif
+
+#if MALLOC_DEBUG
+
+static inline void dirty_list_unlink(treechunk_t *node) ALWAYS_INLINE;
+static inline void
+dirty_list_unlink(treechunk_t *node)
+{
+    treechunk_t * next = node->dirty.next;
+    treechunk_t * prev = node->dirty.prev;
+    next->dirty.prev = prev;
+    prev->dirty.next = next;
+    node->dirty.next = node;
+    node->dirty.prev = node;
+}
+
+static inline void dirty_list_link(treechunk_t *, treechunk_t *) ALWAYS_INLINE;
+static inline void
+dirty_list_link(treechunk_t *node, treechunk_t * next)
+{
+    treechunk_t * prev = next->dirty.prev;
+    node->dirty.next = next;
+    next->dirty.prev = node;
+    prev->dirty.next = node;
+    node->dirty.prev = prev;
+}
+#else
 #define dirty_list_unlink(node)\
     do { \
         treechunk_t * next = node->dirty.next; \
@@ -635,10 +664,7 @@ uint32_t mask_left(bitmap_t map, uint32_t index) {
         (node)->dirty.prev = prev; \
     } while (0)
 
-#ifndef MALLOC_DEBUG
-#define MALLOC_DEBUG 0
 #endif
-
 
 #if MALLOC_DEBUG > 0 
 #define address_ok(mstate, ptr)(find_mapping (mstate, ptr)!= NULL)
