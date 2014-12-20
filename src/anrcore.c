@@ -4072,7 +4072,7 @@ unlocked_flush_freelist(malloc_state_t * self)
             internal_deallocate(self, node);
             add_free_event(self, FREE_EVENT((void *)node), 0, NULL);
         } else 
-            crash("free of wild pointer");
+            malloc_printf(1, "free of wild pointer\n");
         node = next;
     }
     self->free_list = NULL;
@@ -4988,11 +4988,12 @@ _anr_core_free(malloc_state_t * self, void * ptr, void * func)
         SIGNAL(&self->list_populated);
         UNLOCK(&self->freelist_lock);
     } else {
-        if (RARELY (NULL == find_mapping(self, ptr)))
-            crash ("free of wild pointer %p", ptr);
-
-        add_free_event (self, FREE_EVENT(ptr), 0, func);
-        internal_deallocate (self, ptr);
+        if (RARELY (NULL == find_mapping(self, ptr))) 
+            malloc_printf (1, "free of wild pointer %p\n", ptr);
+        else {
+            add_free_event (self, FREE_EVENT(ptr), 0, func);
+            internal_deallocate (self, ptr );
+        }
         
         /* So, we're cheating here.  The freelist may be empty, and 
          * we don't really want to have the overhead of grabbing the
