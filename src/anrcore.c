@@ -374,9 +374,7 @@ struct malloc_state{
     uint32_t available_words;                    /* available words */
     uint32_t total_words;                        /* total words */
     mapping_t * mappings;                        /* mappings being managed */
-    struct{
-        LIST_LINKAGE (treechunk);
-    }dirty;
+    treechunk_t dirty;   
     bitmap_t smallmap[NEAREST_N_BITS(SMALLBINS)];  /* The searchbins and their bitmasks  */
     bitmap_t largemap[NEAREST_N_BITS(LARGEBINS)]; 
     binchunk_t smallbins[SMALLBINS];            
@@ -2101,10 +2099,10 @@ static inline void
 clean_pages(malloc_state_t * self, uint32_t needed)
 {
     uint32_t returned_pages = 0;
-    treechunk_t * dirty = self->dirty.prev;
+    treechunk_t * dirty = self->dirty.dirty.prev;
     treechunk_t * next;
 
-    while (returned_pages < needed && dirty != tree_cast(self)) {
+    while (returned_pages < needed && dirty != &self->dirty) {
         uint32_t pages;
         uintptr_t unused = first_contained_page(chunk_to_unused(dirty));
         pages = contained_pages(chunk_cast(dirty)); 
@@ -3656,7 +3654,7 @@ insert_chunk(malloc_state_t * self, chunk_t * block)
             mark_largemap(self, index);
         }
 
-        dirty_list_link(tree_cast(block), self->dirty.next);
+        dirty_list_link(tree_cast(block), self->dirty.dirty.next);
     }
 }
 
@@ -4401,7 +4399,7 @@ _anr_core_init(malloc_state_t ** out_self,
         _abort = abort_func;
 
     self->free_list = NULL;
-    self->dirty.next = self->dirty.prev = tree_cast(self);
+    self->dirty.dirty.next = self->dirty.dirty.prev = &self->dirty;
     /* we map the state struct in 2 pages.  gotta account for that */
     mapsize -= 2 * PAGESIZE_BYTES;
     pool_size -= 2 * PAGESIZE_BYTES;
@@ -4445,7 +4443,7 @@ _anr_core_init(malloc_state_t ** out_self,
 
     for (; mapcount > 0; mapcount--) {
         _anr_core_add_mapping (self, pool_size, mapsize);
-        self->dirty.next = self->dirty.prev = tree_cast(self);
+        self->dirty.dirty.next = self->dirty.dirty.prev = &self->dirty;
     }
 
     valgrind_make_internals_defined(self);
@@ -6113,10 +6111,10 @@ check_mappings (malloc_state_t * self)
                             return 1;
                         }else{
                             while (chunk->dirty.next != chunk 
-                                   && chunk->dirty.next != tree_cast(self)) {
+                                   && chunk->dirty.next != &self->dirty) {
                                 chunk = chunk->dirty.next;
                             }
-                            if (chunk->dirty.next != tree_cast(self)) {
+                            if (chunk->dirty.next != &self->dirty) {
                                 printf ("dirty chunk not in dirty list!\n");
                                 return 1;
                             }
@@ -6152,10 +6150,10 @@ check_mappings (malloc_state_t * self)
 int
 check_dirty_list(malloc_state_t * self, bool print)
 {
-    treechunk_t * dirty = self->dirty.prev;
+    treechunk_t * dirty = self->dirty.dirty.prev;
     int count = 0;
 
-    while (dirty != tree_cast(self) && count <= self->total_pages) {
+    while (dirty != &self->dirty && count <= self->total_pages) {
         if (print) { 
             printf ("%p - %d pages\n", 
                    dirty, count_contained_dirty_pages(self, chunk_cast(dirty)));
@@ -6173,7 +6171,7 @@ check_dirty_list(malloc_state_t * self, bool print)
         dirty = dirty->dirty.prev;
     }
 
-    if (dirty != tree_cast(self)) {
+    if (dirty != &self->dirty) {
         printf ("dirty list hosed\n");
     }
         
@@ -6181,7 +6179,7 @@ check_dirty_list(malloc_state_t * self, bool print)
         printf ("less pages in list than reclaimable\n");
         return 1;
     }
-    return dirty != tree_cast(self);
+    return dirty != &self->dirty;
 }
 
 
@@ -6217,7 +6215,7 @@ internal_verify (malloc_state_t * self)
                self->available_pages,  self->total_pages);
         status++;
     }
-    if (!self->dirty.next && !self->dirty.prev) {
+    if (!self->dirty.dirty.next && !self->dirty.dirty.prev) {
         printf ("dirty list hosed\n");
         status+= 1;
     }
@@ -7320,7 +7318,7 @@ UNIT_TEST(alignment)
                    POOL_SIZE * 2, 
                    1024,
                    0, 
-                   slabs, NULL, NULL, NULL);
+                   NULL, NULL, NULL, NULL);
 
     for (i = 0; i< 10000; i++) {
 
