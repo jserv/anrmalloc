@@ -6898,21 +6898,21 @@ UNIT_TEST(realloc_grow_and_shrink_hard)
     ut_state->available_words -= chunk_words (block[0]);
     allocate_pages (ut_state, block[0]);
 
-    block[1] = split_chunk_top (ut_state, block[0], 4);
+    block[1] = split_chunk_top (ut_state, block[0], 5);
 
     set_prev_in_use(block[1]);
     set_in_use (block[1]);
 
-    block[2] = split_chunk_top (ut_state, block[1], 5);
+    block[2] = split_chunk_top (ut_state, block[1], 6);
     set_prev_in_use (block[2]);
     set_in_use (block[2]);
 
-    block[3] = split_chunk_top (ut_state, block[2], 5);
+    block[3] = split_chunk_top (ut_state, block[2], 6);
 
     set_prev_in_use (block[3]);
     set_in_use (block[3]);
 
-    block[0] = split_chunk_top (ut_state, block[3], 6);
+    block[0] = split_chunk_top (ut_state, block[3], 7);
     set_prev_in_use (block[0]);
     set_in_use (block[0]);
 
@@ -7208,7 +7208,7 @@ UNIT_TEST(easy_slabs)
 {
     void * ptr[10];
     int i;
-    uint32_t slabs[] = { 16 };
+    uint32_t slabs[] = { 32 };
     UNIT_TEST_HEADER;
 
     _anr_core_init(&ut_state, 
@@ -7241,7 +7241,7 @@ UNIT_TEST(hard_slabs)
 
     void ** ptrs;
     int i;
-    uint32_t slabs[] = { 16,20,24,32,36,128,100 };
+    uint32_t slabs[] = { 20,24,32,36,128,100 };
     UNIT_TEST_HEADER;
 
     _anr_core_init(&ut_state, 
@@ -7287,7 +7287,7 @@ UNIT_TEST(alignment)
 {
     void ** ptrs;
     int i;
-    uint32_t slabs[] = { 16,20,24,32,36,128,100 };
+    uint32_t slabs[] = { 20,24,32,36,128,100 };
     UNIT_TEST_HEADER;
 
     _anr_core_init(&ut_state, 
@@ -7473,7 +7473,7 @@ UNIT_TEST(fillwithtrash)
 {
     word_t * ptr;
     unsigned int i;
-    uint32_t slab_sizes[] = { 16 };
+    uint32_t slab_sizes[] = { 32 };
     unsigned int size;
     UNIT_TEST_HEADER;
 
@@ -7519,13 +7519,13 @@ UNIT_TEST(fillwithtrash)
     _anr_core_init(&ut_state, FILL_WITH_TRASH, POOL_SIZE, POOL_SIZE * 2,
                    1024, 1, slab_sizes, NULL, NULL, NULL);
 
-    ptr = ut_malloc(16);
+    ptr = ut_malloc(32);
 
     assert(alloc_is_slice(ut_state, ptr));
 
     ut_free(ptr);
 
-    for (i = 0; i < bytes_to_words(16); i++)
+    for (i = 0; i < bytes_to_words(32); i++)
         assert((uintptr_t)ptr[i] == (uintptr_t)0xdeadbeef);
 
     _anr_core_teardown(ut_state);
