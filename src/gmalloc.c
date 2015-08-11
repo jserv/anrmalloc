@@ -699,6 +699,26 @@ gmalloc_report(FILE * fp, const char * params)
 {
     _anr_core_report (state.mstate, fileno(fp), params);
 }
+int
+gmalloc_expand(int pages)
+{
+    int pages_received;
+
+    if (state.use_membroker) {
+        pages_received = mb_request_pages (pages);
+
+        if (pages_received < pages) {
+            mb_return_pages(pages_received);
+            return 0;
+        }
+    }
+
+    pthread_mutex_lock (&state.lock);
+    pages = _anr_core_expand (state.mstate, pages);
+    pthread_mutex_unlock (&state.lock);
+
+    return pages;
+}
 int 
 gmalloc_shrink(int pages)
 {

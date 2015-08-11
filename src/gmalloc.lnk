@@ -1,1 +1,1 @@
-{ global: malloc; realloc; calloc; free; posix_memalign; gmalloc_set_callbacks; gmalloc_shrink; gmalloc_total_bytes; gmalloc_free_bytes; gmalloc_report; gmalloc_dump; gmalloc_enable_debug; local: *;};
+{ global: malloc; realloc; calloc; free; posix_memalign; gmalloc_set_callbacks; gmalloc_expand; gmalloc_shrink; gmalloc_total_bytes; gmalloc_free_bytes; gmalloc_report; gmalloc_dump; gmalloc_enable_debug; local: *;};

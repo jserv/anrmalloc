@@ -47,6 +47,7 @@ typedef unsigned int (*TotalMemoryFunction)(void);
 typedef int (*ShrinkFunction)(int pages);
 
 void gmalloc_set_callbacks(void * context, MoreMemoryFunction more_mem, ReturnMemoryFunction less_mem);
+int gmalloc_expand(int pages);
 int gmalloc_shrink(int pages);
 unsigned int gmalloc_total_bytes(void);
 /* Getting the free bytes is only intended as diagnostic information.
