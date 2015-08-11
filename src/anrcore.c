@@ -5204,8 +5204,6 @@ _anr_core_realloc(malloc_state_t * self,
             UNLOCK(&self->freelist_lock);
         } while (realloc_words - alloc_words > self->available_words);
     }
-    /* catch double frees */
-    block->head &= ~IN_USE_BIT;
 
     /* alternate policy.  if the alloc is shrinking and destination is small,
      * we do a hard copy 
@@ -5233,8 +5231,6 @@ _anr_core_realloc(malloc_state_t * self,
                 VALGRIND_MAKE_MEM_DEFINED(ptr, size);
                 mempcpy (ret_ptr, ptr, size);
             }
-            /* this isn't a double free... really */
-            block->head |= IN_USE_BIT;
             valgrind_malloc(ptr, words_to_bytes(alloc_words));
             if (RARELY(fill_with_trash(self)))
                write_trash(self, ptr);
@@ -5242,6 +5238,9 @@ _anr_core_realloc(malloc_state_t * self,
             goto POSTACTION;
         }
     }
+
+    /* catch double frees */
+    block->head &= ~IN_USE_BIT;
 
     /* several cases for realloc */
 
@@ -6975,6 +6974,70 @@ UNIT_TEST(realloc_grow_and_shrink_hard)
     write_trash (ut_state, chunk_to_mem (block[1]));
 
     ptr[0] = ut_realloc (chunk_to_mem(block[1]), user_bytes(ut_state, block[1]) + words_to_bytes (1));
+
+    assert (0 == _anr_core_verify(ut_state));
+
+    _anr_core_teardown (ut_state);
+    UNIT_TEST_FOOTER;
+}
+
+UNIT_TEST( realloc_slab_in_prev_chunk )
+{
+    void * ptr[2];
+    void * first;
+    void * second;
+    uint32_t slabs[] = { 16 };
+
+    unsigned int i, alloc_pages, allocated_bytes = 0;
+
+    UNIT_TEST_HEADER;
+    _anr_core_init (&ut_state,
+                    MALLOC_VERIFY, 
+                    128 * 1024,
+                    128 * 1024 , 1024 ,
+                    sizeof(slabs)/sizeof(slabs[0]), 
+                    slabs, NULL, NULL, NULL);
+
+    alloc_pages = (ut_state->available_pages / 2);
+
+    for(i= 0; i< 2; i++){
+        ptr[i] = ut_malloc(alloc_pages * 4096 - 16);
+        assert(ptr[i]);
+        allocated_bytes += alloc_pages * 4096 - 16;
+    }
+
+    if (ptr[0] < ptr[1]) {
+        first = ptr[0];
+        second = ptr[1];
+    } else {
+        first = ptr[1];
+        second = ptr[0];
+    }
+
+    // Use up the slabs
+    while (ut_state->slab_pool->pool->n_available > 0) {
+        ut_malloc(16);
+        allocated_bytes += 16;
+    }
+
+    // Use up any holes big enough to fulfill a new slab
+    while (ut_malloc(2048)) {
+        allocated_bytes += 2048;
+    }
+
+    printf("bytes allocated: %d\tbytes available in pool: %d\n", 
+           allocated_bytes, 
+           words_to_bytes(ut_state->available_words));
+
+    // Free first so that it will be chosen for the new slab
+    ut_free(first);
+
+    // Cause a "defragmenting realloc" of second.
+    second = ut_realloc(second, 16);
+
+    assert (0 == _anr_core_verify(ut_state));
+
+    ut_free(second);
 
     assert (0 == _anr_core_verify(ut_state));
 
