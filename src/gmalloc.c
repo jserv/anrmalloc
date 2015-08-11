@@ -32,6 +32,7 @@
 #include "parse_config.h"
 #include "gmalloc.h"
 #include <errno.h>
+#include <assert.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <signal.h>
@@ -66,6 +67,7 @@ struct g_state{
     int dumped;
     int svc_err_on_oom;
     int dump_debug_on_oom;
+    int use_membroker;
     char dump_file[PARSE_CONFIG_BUFFER_SIZE];
     pthread_key_t tid_key;
     pthread_mutex_t atfork;
@@ -312,11 +314,45 @@ postfork_child(void)
     state._less_mem = 0;
 }
 
+/*
+ * Set the address space for the heap to be larger than the amount of
+ * memory we actually have.  Anr will make this much address space
+ * available, but will not use more than the given amount of memory,
+ * which allows it to avoid a majority of fragmentation problems.
+ *
+ * However, on systems with a lot of memory in the heap, we may not
+ * actually be able to map enough address space to cover twice the
+ * amount of memory we can use.  So, we play around a bit with the
+ * mappings to fit.
+ */
+static unsigned int calculate_map_size(unsigned int size)
+{
+    unsigned int map_size = 0;
+    int i;
+
+    /* i = 0 -> map_size = 2 * size
+     * i = 1 -> map_size = 1.5 * size
+     * i = 2 -> map_size = 1.25 * size
+     * i = 3 -> map_size = 1.125 * size
+     * i = 4 -> map_size = 1.0625 * size
+     */
+    for (i = 0; i < 5 && map_size < size; i++){
+        map_size = size + (size >> i);
+    }
+
+    if (map_size < size)
+        map_size = size;
+
+    return map_size;
+}
+
 static int
 gmalloc_init(void)
 {
     unsigned int poolsize = 0;
+    unsigned int init_poolsize = 0;
     unsigned int mapsize = 0;
+    unsigned int expandable_poolsize = 0;
     unsigned int slab_count = 0;
     unsigned int slabs[100];
     unsigned int dbg_words=0;
@@ -329,6 +365,7 @@ gmalloc_init(void)
     ParseConfig parser;
     MoreMemoryFunction more_mem_callback = more_memory;
     char * use_membroker;
+    int membroker_pages = 0;
 
     memset (&state, 0, sizeof(state));
     memset (slabs, 0, sizeof(int) * sizeof(slabs)/sizeof(slabs[0]));
@@ -371,6 +408,7 @@ gmalloc_init(void)
         fill_with_trash = parser_get_val(&parser, "FILL_WITH_TRASH");
         state.svc_err_on_oom = parser_get_val(&parser, "SVC_ERR_ON_OOM");
         state.dump_debug_on_oom = parser_get_val(&parser, "DUMP_DEBUG_ON_OOM");
+        expandable_poolsize = parser_get_val(&parser, "EXPANDABLE_POOL_SIZE");
         parser_get_string(&parser, "DUMP_FILE", sizeof(state.dump_file),
                           state.dump_file);
     } 
@@ -395,6 +433,7 @@ gmalloc_init(void)
 
     if (poolsize == 0)
         poolsize = 2 * 1024 * 1024;
+    init_poolsize = poolsize;
 
     if (page_ceiling == 0)
         page_ceiling = 128; /* 500k seems pretty low */
@@ -406,8 +445,25 @@ gmalloc_init(void)
     use_membroker = getenv("USE_MEMBROKER");
 
     if (use_membroker && strcmp("1", use_membroker) == 0){
+        state.use_membroker = 1;
         mb_register(0);
         more_mem_callback = membroker_more_memory;
+    }
+
+    if (state.use_membroker && expandable_poolsize) {
+#if HAVE_MEMBROKER
+        /* Wait for the membroker source to connect and give pages to
+         * membroker. We will set poolsize to the total number of pages
+         * then shrink it so that we could potentially grow to the
+         * maximum memory size. */
+        while ((membroker_pages = mb_query_total()) == 0)
+            usleep(20 * 1000);
+
+        poolsize = membroker_pages * EXEC_PAGESIZE;
+        mapsize = calculate_map_size(poolsize);
+#else
+        anr_crash("Asked for membroker but support is compiled out");
+#endif
     }
 
     /* need to account for the 1 word of overhead we put in to track return address */ 
@@ -425,11 +481,14 @@ gmalloc_init(void)
                    &state, 
                    NULL);
 
-    if (use_membroker && strcmp("1", use_membroker) == 0){
-        int pages = mb_request_pages(10);
-        if (pages < 4)
-            pages += mb_reserve_pages(4-pages);
-        _anr_core_set_size(state.mstate, pages);
+    if (state.use_membroker) {
+        int pages = 0;
+        if (expandable_poolsize)
+            _anr_core_shrink(state.mstate,
+                             membroker_pages - (init_poolsize / EXEC_PAGESIZE));
+
+        pages = mb_reserve_pages(init_poolsize / EXEC_PAGESIZE);
+        assert(pages);
     }
 
     return 0;
