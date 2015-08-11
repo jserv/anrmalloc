@@ -736,12 +736,12 @@ int
 gmalloc_shrink(int pages)
 {
     int taken_pages;
-    if (state.use_membroker) {
-        mb_return_pages(pages);
-    }
     pthread_mutex_lock (&state.lock);
     taken_pages = _anr_core_shrink(state.mstate, pages);
     pthread_mutex_unlock (&state.lock);
+    if (state.use_membroker) {
+        mb_return_pages(taken_pages);
+    }
     return taken_pages;
 }
 void
