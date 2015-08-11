@@ -488,12 +488,56 @@ gmalloc_init(void)
                    NULL);
 
     if (state.use_membroker) {
+        /*
+         * If expandable_poolsize, then init_poolsize < poolsize.  Otherwise,
+         * init_poolsize == poolsize.  It just works out.
+         *
+         * Either way, we need to account for our memory properly.
+         */
+        int total_pages = poolsize / EXEC_PAGESIZE;
+        int init_pages = init_poolsize / EXEC_PAGESIZE;
+        int shrunk_pages;
+        int overhead_pages;
+        int expanded_pages;
         int pages = 0;
         if (expandable_poolsize)
-            _anr_core_shrink(state.mstate,
-                             membroker_pages - (init_poolsize / EXEC_PAGESIZE));
+            assert(init_pages < total_pages);
+        else
+            assert(init_pages == total_pages);
 
-        pages = mb_reserve_pages(init_poolsize / EXEC_PAGESIZE);
+        /*
+         * First, ask the heap to give up everything we gave it.
+         *
+         * The heap will shrink as far as it can, and return how much
+         * that was.  The difference between how much we asked it to
+         * shrink (everything) and how much it actually shrank tells
+         * us the heap overhead, how many pages are required just to
+         * have the thing initialized.
+         */
+        shrunk_pages = _anr_core_shrink (state.mstate, total_pages);
+
+        overhead_pages = total_pages - shrunk_pages;
+
+        /* Then we expand from there to include the initial free
+         * memory we want. */
+        expanded_pages = _anr_core_expand (state.mstate, init_pages);
+
+        if (expanded_pages < init_pages) {
+            /* Not sure what to do about this, other than complain... */
+            fprintf (stderr,
+                     "%s: initial expand failed?\n"
+                     "...  init_pages %d, expanded_pages %d\n",
+                     __func__, init_pages, expanded_pages);
+
+            /* Be honest... */
+            init_pages = expanded_pages;
+        }
+
+        /* The sum of those is how much we need to reserve from membroker. */
+
+        /* Officially reserve that amount from membroker, so we're properly
+         * accounted. */
+        pages = mb_reserve_pages (overhead_pages + init_pages);
         assert(pages);
     }
 
