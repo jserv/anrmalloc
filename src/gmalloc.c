@@ -322,6 +322,7 @@ gmalloc_init(void)
     unsigned int dbg_words=0;
     unsigned int i;
     unsigned int disable_slabs = 0;
+    unsigned int fill_with_trash = 0;
     bool is_parser_ok = false;
     const char* config_file_path = 0;
     int page_ceiling = 0;
@@ -367,6 +368,7 @@ gmalloc_init(void)
         mapsize = parser_get_val(&parser, "MAP_SIZE");
         page_ceiling = parser_get_val(&parser, "PAGE_CEILING");
         disable_slabs = parser_get_val(&parser, "DISABLE_SLABS");
+        fill_with_trash = parser_get_val(&parser, "FILL_WITH_TRASH");
         state.svc_err_on_oom = parser_get_val(&parser, "SVC_ERR_ON_OOM");
         state.dump_debug_on_oom = parser_get_val(&parser, "DUMP_DEBUG_ON_OOM");
         parser_get_string(&parser, "DUMP_FILE", sizeof(state.dump_file),
@@ -413,7 +415,7 @@ gmalloc_init(void)
         slabs[i] += sizeof(word_t);
 
     _anr_core_init(&(state.mstate),
-                   0,
+                   fill_with_trash ? FILL_WITH_TRASH : 0,
                    poolsize, 
                    mapsize, 
                    page_ceiling/2, 
