@@ -3860,6 +3860,7 @@ find_chunk(malloc_state_t * self, size_t words)
 
     if (USUALLY(words < bytes_to_words(SMALLBLOCK_MAX))) {
         block = find_binchunk(self, words);
+        if(RARELY(!block)) return NULL;
         if (chunk_is_slab(block)) {
             return block;
         }
