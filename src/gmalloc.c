@@ -623,10 +623,10 @@ void
 free(void * ptr)
 {
     int pages;
-    pthread_once( &init, (InitFunction)gmalloc_init);
     
     if (RARELY( ptr == NULL )) return;
 
+    pthread_once( &init, (InitFunction)gmalloc_init);
     pthread_mutex_lock (&state.lock);
 
     __free(ptr);
