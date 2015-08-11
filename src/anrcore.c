@@ -682,6 +682,9 @@ dirty_list_link(treechunk_t *node, treechunk_t * next)
 #define TRYLOCK(lock)\
     pthread_mutex_trylock (lock)
 
+#define TIMEDLOCK(lock, abs_timeout)\
+    pthread_mutex_timedlock((lock), (abs_timeout))
+
 #define WAIT(cond, lock)\
     pthread_cond_wait (cond, lock)
 
@@ -4831,6 +4834,55 @@ _anr_core_trylock_heap(malloc_state_t * self)
 {
     return 0 == TRYLOCK(&self->heap_lock);
 }
+static void
+timespec_add_nsec (struct timespec * ts,
+                   unsigned long long nsec)
+{
+    /* See unit test, below. */
+    unsigned long long temp_nsec;
+
+#define NSEC_PER_SEC    1000000000
+
+    /* Adding seconds is easy... */
+    ts->tv_sec += nsec / NSEC_PER_SEC;
+
+    /*
+     * Adding nsecs is harder.  Because of datatype limitations, we
+     * have to detect overflow before it happens.  The timespec is
+     * supposed to stay normalized, with tv_nsec representing less
+     * than a whole second.
+     *
+     * We'll cheat and use long long to hold the temporary nsec value
+     * for overflow detection.
+     */
+    temp_nsec = ts->tv_nsec + (nsec % NSEC_PER_SEC);
+    if (temp_nsec >= NSEC_PER_SEC) {
+        /* We know it was only one second's worth, because the kernel
+         * gave us a normalized starting point and the modulo give us
+         * less than a second's worth, so less than a second plus less
+         * than a second must be less than two seconds. */
+        ts->tv_sec ++;
+        temp_nsec -= NSEC_PER_SEC;
+    }
+    ts->tv_nsec = temp_nsec;
+}
+bool
+_anr_core_timedlock_heap(malloc_state_t * self, unsigned int rel_timeout_usec)
+{
+    struct timespec abs_timeout;
+
+    if (rel_timeout_usec == 0) {
+        /* Simple case. */
+        return _anr_core_trylock_heap(self);
+    }
+
+    /* Absolute timespecs are a PITA, we hates them, precioussss... */
+    clock_gettime (CLOCK_MONOTONIC, &abs_timeout);
+
+    timespec_add_nsec (&abs_timeout, 1000 * rel_timeout_usec);
+
+    return 0 == TIMEDLOCK(&self->heap_lock, &abs_timeout);
+}
 bool
 _anr_core_valid_pointer(malloc_state_t * self, void * ptr)
 {
@@ -7961,6 +8013,40 @@ UNIT_TEST(slab_reclaim)
 #endif
 
     _anr_core_teardown(ut_state);
+    UNIT_TEST_FOOTER;
+}
+
+UNIT_TEST (abs_timeout)
+{
+    struct timespec ts;
+
+    UNIT_TEST_HEADER;
+
+#define CHECK_TIMESPEC_ADD(start_sec, start_nsec, add_nsec, exp_sec, exp_nsec) \
+    do { \
+        ts.tv_sec = start_sec;                      \
+        ts.tv_nsec = start_nsec;                    \
+        timespec_add_nsec (&ts, add_nsec);          \
+        printf ("TEST line %d\n", __LINE__);        \
+        printf ("  start_sec  %d\n", start_sec);    \
+        printf ("  start_nsec %d\n", start_nsec);   \
+        printf ("  add_nsec   %d\n", add_nsec);     \
+        printf ("  exp_sec    %d\n", exp_sec);      \
+        printf ("  exp_nsec   %d\n", exp_nsec);     \
+        printf ("  ts.tv_sec  %d\n", ts.tv_sec);    \
+        printf ("  ts.tv_nsec %d\n", ts.tv_nsec);   \
+        assert (ts.tv_sec == exp_sec);              \
+        assert (ts.tv_nsec == exp_nsec);            \
+    } while (0)
+
+    /*                      start                add       expect        */
+    /*                 tv_sec    tv_nsec        nsec   tv_sec   tv_nsec */
+    CHECK_TIMESPEC_ADD (12345,         0,          0,   12345,         0);
+    CHECK_TIMESPEC_ADD (12345, 750000000,  250000000,   12346,         0);
+    CHECK_TIMESPEC_ADD (12345, 750000000, 2000000000,   12347, 750000000);
+    CHECK_TIMESPEC_ADD (12345, 999999999,  999999999,   12346, 999999998);
+    CHECK_TIMESPEC_ADD (12345, 250000000,  250000000,   12345, 500000000);
+
     UNIT_TEST_FOOTER;
 }
 

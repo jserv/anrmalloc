@@ -63,6 +63,7 @@ void anr_malloc_block_until_free(void);
 void anr_malloc_report_leaks(bool);
 void anr_malloc_lock_heap(void);
 void anr_malloc_unlock_heap(void);
+bool anr_malloc_trylock_heap(unsigned int rel_timeout_usec);
 bool anr_malloc_out_of_memory_is_error(void);
 bool anr_malloc_set_out_of_memory_is_error(bool is_error);
 

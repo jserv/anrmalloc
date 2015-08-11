@@ -887,6 +887,18 @@ anr_malloc_lock_heap(void)
 {
     _anr_core_lock_heap(state.mstate);
 }
+/**
+ * Attempt to lock the heap, with an optional timeout.
+ * @param rel_timeout_usec  If 0, never wait, return immediately.
+ *                          If nonzero, wait at most that many microseconds
+ *                          for the heap lock.
+ * @return True if we successfully took the lock, false if not.
+ */
+bool
+anr_malloc_trylock_heap(unsigned int rel_timeout_usec)
+{
+    return _anr_core_timedlock_heap (state.mstate, rel_timeout_usec);
+}
 void
 anr_malloc_unlock_heap(void)
 {

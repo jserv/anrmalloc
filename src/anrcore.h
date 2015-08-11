@@ -120,6 +120,7 @@ int _anr_core_check_chunks(malloc_state_t *);
 void _anr_core_lock_heap(malloc_state_t *);
 int _anr_core_unlock_heap(malloc_state_t *);
 bool _anr_core_trylock_heap(malloc_state_t *);
+bool _anr_core_timedlock_heap(malloc_state_t *, unsigned int rel_timeout_usec);
 void _anr_core_prefork_prepare(malloc_state_t *);
 int _anr_core_postfork(malloc_state_t *);
 void _anr_core_reinit_locks(malloc_state_t *);
