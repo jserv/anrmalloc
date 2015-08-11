@@ -354,6 +354,7 @@ gmalloc_init(void)
     unsigned int init_poolsize = 0;
     unsigned int mapsize = 0;
     unsigned int expandable_poolsize = 0;
+    unsigned int no_autorequest_memory = 0;
     unsigned int slab_count = 0;
     unsigned int slabs[100];
     unsigned int dbg_words=0;
@@ -410,6 +411,7 @@ gmalloc_init(void)
         state.svc_err_on_oom = parser_get_val(&parser, "SVC_ERR_ON_OOM");
         state.dump_debug_on_oom = parser_get_val(&parser, "DUMP_DEBUG_ON_OOM");
         expandable_poolsize = parser_get_val(&parser, "EXPANDABLE_POOL_SIZE");
+        no_autorequest_memory = parser_get_val(&parser, "NO_AUTOREQUEST_MEMORY");
         parser_get_string(&parser, "DUMP_FILE", sizeof(state.dump_file),
                           state.dump_file);
     } 
@@ -470,6 +472,9 @@ gmalloc_init(void)
     /* need to account for the 1 word of overhead we put in to track return address */ 
     for (i = 0; i< slab_count; i++)
         slabs[i] += sizeof(word_t);
+
+    if (no_autorequest_memory)
+        more_mem_callback = NULL;
 
     _anr_core_init(&(state.mstate),
                    fill_with_trash ? FILL_WITH_TRASH : 0,
