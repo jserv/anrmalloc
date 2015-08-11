@@ -259,19 +259,29 @@ more_memory(void * context, unsigned int attempt, unsigned int size)
 static unsigned int
 membroker_more_memory(void * context UNUSED, unsigned int attempt UNUSED, unsigned int size)
 {
-    int pages = mb_request_pages (nearest_page(size));
+    int pages;
+    int used;
+
+    pages = mb_request_pages (nearest_page (size));
     
     if (pages < 0) {
         _anr_core_set_error(state.mstate, true);
         return 0;
     }
 
-    _anr_core_expand (state.mstate, pages);
+    used = _anr_core_expand (state.mstate, pages);
 
-    return pages * EXEC_PAGESIZE;
+    /* invariants, according to the code in _anr_core_expand() */
+    assert (used <= pages);  /* he can't use more than we gave him */
+    assert (used >= 0);  /* negative value means anr is internally hosed */
 
-    ((void)size);
+    if (used < pages) {
+        /* ANR didn't use everything.  Return excess to membroker. */
+        mb_return_pages (pages - used);
+    }
 
+    /* return the amount by which we embiggened the heap */
+    return used * EXEC_PAGESIZE;
 }
 
 static void
