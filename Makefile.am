@@ -7,7 +7,7 @@ lib_LTLIBRARIES = libanrmalloc.la
 libanrmalloc_la_SOURCES = \
 	src/anrcore.c \
 	src/parse_config.c \
-	src/anrmalloc.o \
+	src/anrmalloc.c \
 	src/anrcore.h \
 	src/anrmalloc.h \
 	src/parse_config.h
