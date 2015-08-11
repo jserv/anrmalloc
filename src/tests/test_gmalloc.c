@@ -15,7 +15,17 @@
 // number to fail, since there are various overheads.
 static const unsigned int ALLOC_SIZE = 64 * 1024;
 
-static bool was_more_memory_called = false;
+// we've got a couple of gcc+malloc optimizations to deal with here...
+//   gcc recognizes malloc as a special function and has "builtin" knowledge about
+//   it.  It assumes that it can't modify global memory, in particular our 
+//   "was_more_memory_called" flag.  Thus it *knows* that our assert of
+//   "was_more_meory_called" will fail without having to load it after the call
+//   to malloc.  -fno-builtin-malloc defeats this.  However, glibc's stdlib.h
+//   declares malloc with __attributes__ leaf+malloc, which has the same effect.
+//   We can avoid stdlib.h's declaration if we #define __malloc_and_calloc_defined
+//   before including it but then we need our own prototype for malloc here.
+//     .... or we can just declare our flag volatile.
+static volatile bool was_more_memory_called = false;
 
 unsigned int more_memory(void* u1, unsigned int u2, unsigned int u3)
 {
