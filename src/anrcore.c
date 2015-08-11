@@ -7624,9 +7624,13 @@ UNIT_TEST(slab_realloc)
                     slabs, NULL, NULL, NULL);
 
 
-    ptrs[0] = ut_malloc(16);
-    
-    assert(alloc_is_slice(ut_state,ptrs[0]));
+    do {
+        /* There may be other chunks around other than the slab that
+         * could fulfill this allocation.  Keep trying until we get a
+         * slice. */
+        ptrs[0] = ut_malloc(16);
+    } while (!alloc_is_slice(ut_state, ptrs[0]));
+
     /* verify that we can grow in the same slice up to the slab size */
     ptrs[1] = ut_realloc(ptrs[0], 20);
 
