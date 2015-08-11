@@ -706,7 +706,7 @@ gmalloc_report(FILE * fp, const char * params)
 int
 gmalloc_expand(int pages)
 {
-    int pages_received;
+    int pages_received = 0;
 
     if (state.use_membroker) {
         pages_received = mb_request_pages (pages);
@@ -720,6 +720,15 @@ gmalloc_expand(int pages)
     pthread_mutex_lock (&state.lock);
     pages = _anr_core_expand (state.mstate, pages);
     pthread_mutex_unlock (&state.lock);
+
+    if (pages_received > 0) {
+        int unused_pages = pages_received - pages;
+        if (unused_pages > 0) {
+            /* membroker gave us more than we could use.  give that
+             * overrage back. */
+            mb_return_pages (unused_pages);
+        }
+    }
 
     return pages;
 }
