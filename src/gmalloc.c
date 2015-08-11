@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h> /* EXEC_PAGESIZE */
+#include <stdint.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -367,7 +368,6 @@ gmalloc_init(void)
     ParseConfig parser;
     MoreMemoryFunction more_mem_callback = more_memory;
     char * use_membroker;
-    int membroker_pages = 0;
 
     memset (&state, 0, sizeof(state));
     memset (slabs, 0, sizeof(int) * sizeof(slabs)/sizeof(slabs[0]));
@@ -459,8 +459,16 @@ gmalloc_init(void)
          * membroker. We will set poolsize to the total number of pages
          * then shrink it so that we could potentially grow to the
          * maximum memory size. */
+        int membroker_pages = 0;
         while ((membroker_pages = mb_query_total()) == 0)
             usleep(20 * 1000);
+
+        /* Depending on the relationship of pointer sizes to integer
+         * sizes, membroker can manage more memory than a given process
+         * can mmap.  Protect yourself. */
+        if (membroker_pages > (INTPTR_MAX / EXEC_PAGESIZE)) {
+            membroker_pages = (INTPTR_MAX / EXEC_PAGESIZE);
+        }
 
         poolsize = membroker_pages * EXEC_PAGESIZE;
         mapsize = calculate_map_size(poolsize);
