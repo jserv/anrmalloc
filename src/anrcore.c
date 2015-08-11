@@ -1699,7 +1699,7 @@ valgrind_destroy_vbits(bitmap_t * vbits)
     block->head &= ~IN_USE_BIT
 
 #define valgrind_printf VALGRIND_PRINTF
-#define printf (...)malloc_printf (fileno(stdout), __VA_ARGS__)
+#define printf(...) malloc_printf (fileno(stdout), __VA_ARGS__)
 #else
 
 #define valgrind_make_chunk_available(block)
