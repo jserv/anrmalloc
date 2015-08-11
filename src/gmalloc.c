@@ -662,12 +662,11 @@ report(int fd, void * ptr, size_t size)
 static void
 post_svcerr(void)
 {
-    int fd = open("/proc/900svc", O_WRONLY);
-    if (fd != -1) {
-        malloc_printf(fd, ":gmalloc exceeded POOL_SIZE limit:"
-                      "Get dump from /var/fs/faxdata/gmalloc_dump");
-        close(fd);
-    }
+    malloc_printf (fileno (stderr), "gmalloc exceeded POOL_SIZE limit\n");
+    if (state.dump_debug_on_oom && state.dumped)
+        malloc_printf (fileno (stderr), "Debug dumped to %s\n", state.dump_file);
+
+    abort ();
 }
 // ToDo: Make actions taken here configurable via config file.
 static void
