@@ -50,6 +50,7 @@
 #define mb_register(a) 
 #define mb_request_pages(pages) 0
 #define mb_reserve_pages(pages) 0 
+#define mb_return_pages(pages) do { } while (0)
 #endif
 
 #if HAVE_FRAME_POINTERS
@@ -702,6 +703,9 @@ int
 gmalloc_shrink(int pages)
 {
     int taken_pages;
+    if (state.use_membroker) {
+        mb_return_pages(pages);
+    }
     pthread_mutex_lock (&state.lock);
     taken_pages = _anr_core_shrink(state.mstate, pages);
     pthread_mutex_unlock (&state.lock);
