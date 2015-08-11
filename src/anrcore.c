@@ -3793,8 +3793,9 @@ find_treechunk(malloc_state_t * self, size_t words)
             block = rb_remove_size(largebin_at(self, index), words);
         } 
         if (!block) {
-            if (mask_right(*bitmap, index2bit(index+1)))
-                index+= ctz(mask_right(*bitmap, index2bit(index +1)) >> index2bit(index));
+            unsigned int next_bit = index2bit(index+1);
+            if (next_bit && mask_right(*bitmap, next_bit))
+                index+= ctz(mask_right(*bitmap, next_bit) >> index2bit(index));
             else{
                 bitmap++;
                 index = (index2word(index) +1) << 5U;
@@ -7109,6 +7110,7 @@ UNIT_TEST(bins)
     unsigned int i;
     binchunk_t * block;
     treechunk_t * tree;
+    size_t size;
 
     UNIT_TEST_HEADER;
 
@@ -7182,7 +7184,7 @@ UNIT_TEST(bins)
 
     memset(&state, 0, sizeof (malloc_state_t));
 
-    /*  If A treebin has something in it, and we request that size, do we get it?
+    /*  If a treebin has something in it, and we request that size, do we get it?
      */
     for (i = 0; i< LARGEBINS; i++) {
         tree= tree_cast(block);
@@ -7194,8 +7196,31 @@ UNIT_TEST(bins)
         state.largebins[i].max = chunk_words(block);
 
         mark_largemap(&state, i);
-        assert(find_treechunk(&state, i + bytes_to_words(MIN_LARGEBLOCK_SIZE)) == chunk_cast(block));
+        size = min(MAX_ALLOC, ((1U << (i/2+1)) + ((i & 1U) << (i/2)))
+                               * bytes_to_words(MIN_LARGEBLOCK_SIZE) / 2);
+        assert(find_treechunk(&state, size) == chunk_cast(block));
         clear_largemap(&state, i);
+
+    }
+
+    /*  If a treebin has something in it, and we request a smaller size, do we get it?
+     */
+    for(i =0; i< LARGEBINS-1; i++){
+        tree= tree_cast( block );
+        tree->list.prev = tree->list.next = tree;
+        tree->link[0] = tree->link[1] = 0;
+        tree->color = BLACK;
+        tree->head = MAX_ALLOC;
+        state.largebins[i+1].root = tree;
+        state.largebins[i+1].max = chunk_words(block);
+
+        mark_largemap(&state, i+1);
+        /* Make sure the presence of smaller bins is ignored */
+        mark_largemap(&state, 0); 
+        size = min(MAX_ALLOC, ((1U << (i/2+1)) + ((i & 1U) << (i/2)))
+                               * bytes_to_words(MIN_LARGEBLOCK_SIZE) / 2);
+        assert( find_treechunk(&state, size) == chunk_cast(block));
+        clear_largemap(&state, i+1);
 
     }
     memset(&state, 0, sizeof (malloc_state_t));
