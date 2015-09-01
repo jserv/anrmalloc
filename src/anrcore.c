@@ -3396,6 +3396,29 @@ allocate_slice (malloc_state_t * self, slab_t * slab)
     return mem;
 }
 
+static inline void
+deallocate_single_slice (malloc_state_t * self, slab_t * slab, void * mem, slabpool_t *pool)
+{
+    slab->n_free++;
+
+    self->available_words+= pool->n_slice_words;
+
+    pool->n_available++;
+
+    if (RARELY(check_bounds(self) && ((word_t *)mem)[pool->n_slice_words -1] != pool->slice_size))
+        crash("buffer overrun");
+
+    if (RARELY (slab->n_free == 1)) {
+        uint32_t index = SMALL_INDEX(pool->n_slice_words + WOVERHEAD);
+        insert_first_binchunk(self, smallbin_at(self,index), bin_cast(slab), index);
+        
+        if (RARELY (pool->n_available == 1 && pool->link.next)) {
+            unlink_chunk(self, chunk_cast(pool));
+            pool->link.next = pool->link.prev = NULL;
+        }
+    }
+}
+
 static inline void deallocate_slice (malloc_state_t * self, slab_t * slab, 
                                      void * mem)ALWAYS_INLINE;
 static inline void
@@ -3416,30 +3439,14 @@ deallocate_slice (malloc_state_t * self, slab_t * slab, void * mem)
             bitmap += pool->n_bitmap_words/2;
             bitmap[bitmap_word] &= ~mask;
 
-            slab->n_free++;
-
-            self->available_words+= pool->n_slice_words;
-
-            pool->n_available++;
-
-            if (RARELY(check_bounds(self)
-                       && ((word_t *)mem)[pool->n_slice_words -1] != pool->slice_size))
-                crash("buffer overrun");
-
-            if (slab->last_bitmap_word > bitmap_word) {
+            if(slab->last_bitmap_word > bitmap_word){
                 slab->last_bitmap_word = bitmap_word;
                 debug_assert (slab->last_bitmap_word < pool->n_bitmap_words/2);
             }
-            if (RARELY (slab->n_free == 1)) {
-                uint32_t index = SMALL_INDEX(pool->n_slice_words + WOVERHEAD);
-                insert_first_binchunk(self, smallbin_at(self,index), bin_cast(slab), index);
-                
-                if (RARELY (pool->n_available == 1 && pool->link.next)) {
-                    unlink_chunk(self, chunk_cast(pool));
-                    pool->link.next = pool->link.prev = NULL;
-                }
 
-            } else if (RARELY(slab->n_free == pool->n_slices_per_slab 
+            deallocate_single_slice(self, slab, mem, pool);
+
+            if (RARELY(slab->n_free == pool->n_slices_per_slab 
                               && pool->n_available > pool->n_slices_per_slab)) {
                 /* free the slab */
 
