@@ -2952,6 +2952,10 @@ valgrind_prepare_slab(slab_t * slab)
 }
 #endif
 
+static inline void
+deallocate_single_slice (malloc_state_t * self, slab_t * slab, void * mem,
+                         slabpool_t *pool);
+
 static inline unsigned int  
 slab_reclaim(malloc_state_t * self, slab_t * slab, ReportFunction func)
 {
@@ -3000,16 +3004,7 @@ slab_reclaim(malloc_state_t * self, slab_t * slab, ReportFunction func)
             if (RARELY(fill_with_trash(self)))
                 write_trash(self, slice);
 
-            if (RARELY(slab->n_free == 0)) {
-                insert_chunk(self, chunk_cast(slab));
-            }
-            if (RARELY(pool->n_available == 0)) {
-                unlink_chunk(self, chunk_cast(pool));
-            }
-            slab->n_free++;
-            pool->n_available++;
-
-            self->available_words+= pool->n_slice_words;
+            deallocate_single_slice(self, slab, slice, pool);
 
             reaped+= pool->slice_size;
         } 
@@ -7047,6 +7042,51 @@ UNIT_TEST( realloc_slab_in_prev_chunk )
     assert (0 == _anr_core_verify(ut_state));
 
     ut_free(second);
+
+    assert (0 == _anr_core_verify(ut_state));
+
+    _anr_core_teardown (ut_state);
+    UNIT_TEST_FOOTER;
+}
+
+UNIT_TEST(full_heap_slab_reclaim)
+{
+    void * ptr[2];
+    uint32_t slabs[] = { 16 };
+    void * last = NULL;
+
+    unsigned int i, alloc_pages, allocated_bytes = 0;
+
+    UNIT_TEST_HEADER;
+    _anr_core_init (&ut_state,
+                    MALLOC_VERIFY, 
+                    128 * 1024,
+                    128 * 1024 , 1024 ,
+                    sizeof(slabs)/sizeof(slabs[0]), 
+                    slabs, NULL, NULL, NULL);
+
+    alloc_pages = (ut_state->available_pages / 2);
+
+    // Use up most of the heap
+    for(i= 0; i< 2; i++){
+        ptr[i] = ut_malloc(alloc_pages * 4096 - 16);
+        assert(ptr[i]);
+        allocated_bytes += alloc_pages * 4096 - 16;
+    }
+
+    // Exhaust everything else with slab allocations
+    void * p;
+    while ( (p = ut_malloc(16)) ) {
+        allocated_bytes += 16;
+        last = p;
+    }
+
+    // Free exactly one slice
+    ut_free(last);
+
+    printf("bytes allocated: %d\tbytes available in pool: %d\n", 
+           allocated_bytes, 
+           words_to_bytes(ut_state->available_words));
 
     assert (0 == _anr_core_verify(ut_state));
 
