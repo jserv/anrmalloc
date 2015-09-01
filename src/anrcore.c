@@ -1579,6 +1579,7 @@ valgrind_make_internals_defined(malloc_state_t * self)
     if (RARELY(self->def_count != 0)) {
         self->def_count++;
         UNLOCK(&self->heap_lock);
+        CALLGRIND_TOGGLE_COLLECT;
         return;
     }
     self->def_count++;
@@ -1623,6 +1624,7 @@ valgrind_make_internals_noaccess(malloc_state_t *self)
 
     if (RARELY (self->def_count != 0)) {
         UNLOCK(&self->heap_lock);
+        CALLGRIND_TOGGLE_COLLECT;
         return;
     }
 
