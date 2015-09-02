@@ -2530,7 +2530,9 @@ unlink_chunk (malloc_state_t * self, chunk_t * block)
 
         debug_assert(index < SMALLBINS);
         next = chunk_cast(bin_cast(block)->link.next);
+        debug_assert(next != NULL);
         prev = chunk_cast(bin_cast(block)->link.prev);
+        debug_assert(prev != NULL);
 
         if (next == prev) {
             clear_smallmap(self, index);
