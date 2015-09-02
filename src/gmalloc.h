@@ -49,7 +49,7 @@ typedef int (*ShrinkFunction)(int pages);
 void gmalloc_set_callbacks(void * context, MoreMemoryFunction more_mem, ReturnMemoryFunction less_mem);
 int gmalloc_expand(int pages);
 int gmalloc_shrink(int pages);
-unsigned int gmalloc_total_bytes(void);
+size_t gmalloc_total_bytes(void);
 /* Getting the free bytes is only intended as diagnostic information.
  *
  * Algorithms that depend on using free bytes won't work very well, if at all.
@@ -64,7 +64,7 @@ unsigned int gmalloc_total_bytes(void);
  *
  * In short, don't make algorithms that rely on free bytes.  Only use it for
  * diagnostic information. */
-unsigned int gmalloc_free_bytes(void);
+size_t gmalloc_free_bytes(void);
 void gmalloc_report(FILE * fp, const char * args);
 void gmalloc_dump(FILE * fp, const char * args);
 void gmalloc_enable_debug (void);

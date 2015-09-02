@@ -47,8 +47,8 @@ void anr_malloc_mark (void * ptr);
 bool anr_malloc_get_error();
 void anr_malloc_set_error(bool error);
 unsigned int anr_malloc_reclaim(void);
-unsigned anr_malloc_total_bytes(void);
-unsigned anr_malloc_free_bytes(void);
+size_t anr_malloc_total_bytes(void);
+size_t anr_malloc_free_bytes(void);
 void anr_malloc_block_until_free(void);
 size_t anr_malloc_usable_size(void *);
 

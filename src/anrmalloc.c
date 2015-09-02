@@ -576,12 +576,12 @@ anr_malloc_verify(void)
     return ret;
 
 }
-unsigned int
+size_t
 anr_malloc_free_bytes(void)
 {
     return _anr_core_free_bytes(state.mstate);
 }
-unsigned int
+size_t
 anr_malloc_total_bytes(void)
 {
     return _anr_core_total_bytes(state.mstate);

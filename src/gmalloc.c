@@ -246,7 +246,7 @@ more_memory(void * context, unsigned int attempt, unsigned int size)
 
         return pages * EXEC_PAGESIZE;
     } else {
-        unsigned int mapsize = _anr_core_total_bytes(state.mstate);
+        size_t mapsize = _anr_core_total_bytes(state.mstate);
         mapsize += _anr_core_mapping_overhead(mapsize);
         mapsize = max( mapsize, nearest_mb(size));
         malloc_printf(fileno(stdout), "Attempting to add %f MB to the heap\n", (float)(((float)mapsize)/1024.0/1024.0));
@@ -820,13 +820,13 @@ gmalloc_set_callbacks(void * context, MoreMemoryFunction more_mem, ReturnMemoryF
     pthread_mutex_unlock (&state.lock);
 
 }
-unsigned int
+size_t
 gmalloc_total_bytes()
 {
     return _anr_core_total_bytes(state.mstate);
 }
 
-unsigned int
+size_t
 gmalloc_free_bytes ()
 {
     return _anr_core_free_bytes (state.mstate);
