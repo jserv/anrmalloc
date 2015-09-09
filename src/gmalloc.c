@@ -757,18 +757,21 @@ gmalloc_out_of_memory(size_t size, void * function)
 void
 gmalloc_dump(FILE * fp, const char * params)
 {
+    pthread_once( &init, (InitFunction)gmalloc_init);
     _anr_core_dump(state.mstate, fileno (fp), report);
     (void) params;
 }
 void
 gmalloc_report(FILE * fp, const char * params)
 {
+    pthread_once( &init, (InitFunction)gmalloc_init);
     _anr_core_report (state.mstate, fileno(fp), params);
 }
 int
 gmalloc_expand(int pages)
 {
     int pages_received = 0;
+    pthread_once( &init, (InitFunction)gmalloc_init);
 
     if (state.use_membroker) {
         pages_received = mb_request_pages (pages);
@@ -798,6 +801,7 @@ int
 gmalloc_shrink(int pages)
 {
     int taken_pages;
+    pthread_once( &init, (InitFunction)gmalloc_init);
     pthread_mutex_lock (&state.lock);
     taken_pages = _anr_core_shrink(state.mstate, pages);
     pthread_mutex_unlock (&state.lock);
@@ -823,12 +827,14 @@ gmalloc_set_callbacks(void * context, MoreMemoryFunction more_mem, ReturnMemoryF
 size_t
 gmalloc_total_bytes()
 {
+    pthread_once( &init, (InitFunction)gmalloc_init);
     return _anr_core_total_bytes(state.mstate);
 }
 
 size_t
 gmalloc_free_bytes ()
 {
+    pthread_once( &init, (InitFunction)gmalloc_init);
     return _anr_core_free_bytes (state.mstate);
 }
 
